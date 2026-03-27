@@ -1,0 +1,173 @@
+<script>
+const API = "http://localhost:5000/api";
+
+let quizData = null;
+let currentQuestions = [];
+  
+window.onload = () => {
+  const chips = document.getElementById("sampleChips");
+  const samples = [
+    { label: "ML Basics", topic: "Machine Learning" },
+    { label: "Neural Networks", topic: "Neural Networks" },
+    { label: "NLP", topic: "Natural Language Processing" }
+  ];
+
+  samples.forEach((s, i) => {
+    const btn = document.createElement("button");
+    btn.className = "chip";
+    btn.textContent = `Try: ${s.label}`;
+    btn.onclick = () => loadSample(i);
+    chips.appendChild(btn);
+  });
+};
+
+function loadSample(i) {
+  const texts = [
+    "Machine learning is a subset of artificial intelligence that enables computers to learn from data without being explicitly programmed...",
+    "A neural network is a computational model inspired by the human brain...",
+    "Natural language processing helps computers understand human language..."
+  ];
+  document.getElementById("inputText").value = texts[i];
+}
+
+
+async function generateQuiz() {
+  const text = inputText.value.trim();
+  const topic = topicInput.value || "General";
+  const num = parseInt(numQ.value) || 8;
+
+  if (!text || text.split(/\s+/).length < 30) {
+    return showStatus("Enter at least 30 words", true);
+  }
+
+  toggleLoading(true);
+
+  try {
+    const res = await fetch(`${API}/generate`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ text, topic, num_questions: num })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    quizData = data;
+    currentQuestions = data.questions;
+
+    renderQuiz(data);
+  } catch {
+    showStatus("Server not responding", true);
+  }
+
+  toggleLoading(false);
+}
+
+
+function renderQuiz(data) {
+  inputPanel.classList.add("hidden");
+  resultPanel.classList.add("hidden");
+  quizPanel.classList.remove("hidden");
+
+  quizMeta.textContent = `${data.topic} — ${data.questions.length} questions`;
+
+  questionsContainer.innerHTML = data.questions.map((q, i) => `
+    <div class="q-card">
+      <div class="q-meta">
+        <span class="q-num">Q${i+1}</span>
+        <span class="badge badge-${q.difficulty}">${q.difficulty}</span>
+      </div>
+      <div class="q-text">${escape(q.question)}</div>
+      <div class="options">
+        ${q.options.map((opt,j)=>`
+          <button class="option" onclick="select(${i},${j})" id="q${i}o${j}">
+            ${String.fromCharCode(65+j)}. ${escape(opt)}
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `).join("");
+}
+
+function select(q, o) {
+  quizData.questions[q].options.forEach((_,i)=>{
+    document.getElementById(`q${q}o${i}`).classList.remove("selected");
+  });
+  document.getElementById(`q${q}o${o}`).classList.add("selected");
+}
+
+
+async function submitQuiz() {
+  const answers = [];
+
+  for (let i=0;i<quizData.questions.length;i++){
+    let chosen = null;
+    quizData.questions[i].options.forEach((opt,j)=>{
+      if(document.getElementById(`q${i}o${j}`).classList.contains("selected")){
+        chosen = opt;
+      }
+    });
+    if(!chosen) return showStatus("Answer all questions");
+    answers.push(chosen);
+  }
+
+  submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/evaluate`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        questions: currentQuestions,
+        user_answers: answers
+      })
+    });
+
+    const data = await res.json();
+    renderResult(data);
+  } catch {
+    showStatus("Evaluation failed", true);
+  }
+}
+
+
+function renderResult(data) {
+  quizPanel.classList.add("hidden");
+  resultPanel.classList.remove("hidden");
+
+  heroSection.innerHTML = `
+    <div class="score-pct">${data.score}%</div>
+    <div>${data.grade} — ${data.performance}</div>
+    <div>${data.correct}/${data.total} correct</div>
+  `;
+
+  diffGrid.innerHTML = ["easy","medium","hard"].map(d=>{
+    const x = data.difficulty[d];
+    return `<div class="diff-cell">
+      <div>${x.accuracy}%</div>
+      <div>${d}</div>
+    </div>`;
+  }).join("");
+}
+
+function toggleLoading(v){
+  loader.classList.toggle("hidden", !v);
+  generateBtn.disabled = v;
+}
+
+function showStatus(msg, err=false){
+  statusMsg.textContent = msg;
+  statusMsg.className = "status" + (err ? " err":"");
+  statusMsg.classList.toggle("hidden", !msg);
+}
+
+function escape(s=""){
+  return s.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function resetAll(){
+  quizPanel.classList.add("hidden");
+  resultPanel.classList.add("hidden");
+  inputPanel.classList.remove("hidden");
+}
+</script>
