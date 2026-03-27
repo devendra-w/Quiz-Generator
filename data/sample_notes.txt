@@ -1,12 +1,8 @@
 Topic: Machine Learning Basics
 Machine learning enables computers to learn from data without explicit programming. Supervised learning trains models on labelled data using gradient descent to minimise loss. Unsupervised learning finds hidden patterns; K-Means clusters similar data points. Reinforcement learning trains agents by rewarding good decisions.
 
----
-
 Topic: Neural Networks
 Neural networks consist of layered neurons applying weighted sums and activation functions like ReLU. Hidden layers extract features; the output layer predicts results. Backpropagation computes gradients to update weights using optimisers like Adam. Dropout and batch normalisation prevent overfitting.
-
----
 
 Topic: Natural Language Processing
 NLP enables computers to understand human language. Preprocessing includes tokenisation, stemming, and stop-word removal. Classical models used Naive Bayes; modern approaches use transformers with self-attention. Pre-trained models like BERT and GPT achieve state-of-the-art results.
