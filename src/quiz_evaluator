@@ -1,0 +1,92 @@
+from dataclasses import dataclass, field
+from question_generator import QuizQuestion
+
+@dataclass
+class Attempt:
+    question: QuizQuestion
+    user_answer: str
+    correct: bool
+
+
+@dataclass
+class Report:
+    total: int
+    correct: int
+    score: float
+    grade: str
+    performance: str
+    difficulty_stats: dict
+    correct_topics: list[str]
+    wrong_topics: list[str]
+    attempts: list[Attempt] = field(default_factory=list)
+
+
+class QuizEvaluator:
+
+    GRADES = [
+        (90, "A", "Excellent"),
+        (75, "B", "Good"),
+        (60, "C", "Average"),
+        (40, "D", "Needs Practice"),
+        (0,  "F", "Revise Again"),
+    ]
+
+    def evaluate(self, questions, answers):
+        """Compare answers and generate report."""
+
+        if len(questions) != len(answers):
+            raise ValueError("Questions and answers count mismatch")
+
+        attempts = [
+            Attempt(q, a, a.strip().lower() == q.answer.strip().lower())
+            for q, a in zip(questions, answers)
+        ]
+
+        total = len(attempts)
+        correct = sum(a.correct for a in attempts)
+        score = round((correct / total) * 100, 2) if total else 0
+
+        grade, performance = self._get_grade(score)
+        difficulty_stats = self._difficulty_stats(attempts)
+
+        correct_topics = [a.question.answer for a in attempts if a.correct]
+        wrong_topics = [a.question.answer for a in attempts if not a.correct]
+
+        return Report(
+            total=total,
+            correct=correct,
+            score=score,
+            grade=grade,
+            performance=performance,
+            difficulty_stats=difficulty_stats,
+            correct_topics=correct_topics,
+            wrong_topics=wrong_topics,
+            attempts=attempts,
+        )
+
+
+    def _get_grade(self, score):
+        for threshold, grade, label in self.GRADES:
+            if score >= threshold:
+                return grade, label
+        return "F", "Revise Again"
+
+    def _difficulty_stats(self, attempts):
+        stats = {
+            "easy": {"total": 0, "correct": 0},
+            "medium": {"total": 0, "correct": 0},
+            "hard": {"total": 0, "correct": 0},
+        }
+
+        for a in attempts:
+            d = a.question.difficulty
+            if d in stats:
+                stats[d]["total"] += 1
+                if a.correct:
+                    stats[d]["correct"] += 1
+
+        for d in stats:
+            t = stats[d]["total"]
+            stats[d]["accuracy"] = round((stats[d]["correct"] / t) * 100, 1) if t else 0
+
+        return stats
